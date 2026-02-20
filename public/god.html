@@ -1,0 +1,770 @@
+<!--
+  局域网狼人杀游戏 - 上帝视角页面
+  Made by Xyihang and GLM-5 / 由 Xyihang 和 GLM-5 制作
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>狼人杀 - 上帝视角</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #e94560, #f39c12);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .header p {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+    
+    .connection-panel {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .connection-panel input {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 1rem;
+      width: 150px;
+    }
+    
+    .connection-panel input::placeholder {
+      color: #aaa;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #e94560, #f39c12);
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+    }
+    
+    .btn-danger {
+      background: #e74c3c;
+      color: #fff;
+    }
+    
+    .btn-success {
+      background: #27ae60;
+      color: #fff;
+    }
+    
+    .status-badge {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    
+    .status-connected {
+      background: #27ae60;
+    }
+    
+    .status-disconnected {
+      background: #e74c3c;
+    }
+    
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .panel {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .panel h2 {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .room-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .info-card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .info-card .label {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-bottom: 5px;
+    }
+    
+    .info-card .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #e94560;
+    }
+    
+    .players-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .players-table th,
+    .players-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .players-table th {
+      background: rgba(255, 255, 255, 0.1);
+      font-weight: 600;
+      color: #f39c12;
+    }
+    
+    .players-table tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .role-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    
+    .role-werewolf { background: #e74c3c; }
+    .role-villager { background: #3498db; }
+    .role-seer { background: #9b59b6; }
+    .role-witch { background: #1abc9c; }
+    .role-hunter { background: #e67e22; }
+    .role-guard { background: #2ecc71; }
+    
+    .status-alive {
+      color: #2ecc71;
+    }
+    
+    .status-dead {
+      color: #e74c3c;
+      text-decoration: line-through;
+    }
+    
+    .night-actions {
+      margin-top: 15px;
+    }
+    
+    .action-item {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .action-item .action-type {
+      font-weight: 600;
+      color: #f39c12;
+    }
+    
+    .action-item .action-target {
+      color: #e94560;
+    }
+    
+    .log-panel {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .log-entry {
+      padding: 8px 12px;
+      border-left: 3px solid #e94560;
+      margin-bottom: 5px;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.9rem;
+    }
+    
+    .log-entry.system {
+      border-left-color: #f39c12;
+      color: #f39c12;
+    }
+    
+    .rooms-list {
+      margin-top: 15px;
+    }
+    
+    .room-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .room-item:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+    
+    .room-item .room-id {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #e94560;
+    }
+    
+    .room-item .room-players {
+      color: #aaa;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .login-box {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+    
+    .login-box h2 {
+      margin-bottom: 20px;
+      color: #e94560;
+    }
+    
+    .login-box input {
+      width: 100%;
+      padding: 15px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 1rem;
+      text-align: center;
+    }
+    
+    .login-box input::placeholder {
+      color: #aaa;
+    }
+    
+    .login-error {
+      color: #e74c3c;
+      margin-bottom: 15px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>🔐 上帝视角验证</h2>
+      <p style="color: #aaa; margin-bottom: 20px;">请输入访问密码</p>
+      <div id="loginError" class="login-error">密码错误</div>
+      <input type="password" id="passwordInput" placeholder="输入密码" maxlength="20">
+      <button id="loginBtn" class="btn btn-primary" style="width: 100%;">进入</button>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="header">
+      <h1>🔮 狼人杀上帝视角</h1>
+    </div>
+    
+    <div class="connection-panel">
+      <input type="text" id="roomIdInput" placeholder="房间号" maxlength="6">
+      <button id="connectBtn" class="btn btn-primary">连接房间</button>
+      <button id="disconnectBtn" class="btn btn-danger hidden">断开连接</button>
+      <span id="statusBadge" class="status-badge status-disconnected">未连接</span>
+    </div>
+    
+    <div id="roomsPanel" class="panel">
+      <h2>📋 在线房间列表</h2>
+      <div id="roomsList" class="rooms-list">
+        <p style="color: #aaa;">正在获取房间列表...</p>
+      </div>
+    </div>
+    
+    <div id="gamePanel" class="hidden">
+      <div class="room-info">
+        <div class="info-card">
+          <div class="label">房间号</div>
+          <div class="value" id="displayRoomId">-</div>
+        </div>
+        <div class="info-card">
+          <div class="label">当前阶段</div>
+          <div class="value" id="displayPhase">-</div>
+        </div>
+        <div class="info-card">
+          <div class="label">游戏天数</div>
+          <div class="value" id="displayDay">-</div>
+        </div>
+        <div class="info-card">
+          <div class="label">存活人数</div>
+          <div class="value" id="displayAlive">-</div>
+        </div>
+      </div>
+      
+      <div class="main-grid">
+        <div class="panel">
+          <h2>👥 玩家列表 (上帝视角)</h2>
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th>玩家</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>身份</th>
+              </tr>
+            </thead>
+            <tbody id="playersTableBody">
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="panel">
+          <h2>🌙 夜间行动</h2>
+          <div id="nightActions" class="night-actions">
+            <p style="color: #aaa;">等待夜间阶段...</p>
+          </div>
+          
+          <h2 style="margin-top: 20px;">📜 游戏日志</h2>
+          <div id="gameLog" class="log-panel">
+            <p style="color: #aaa;">暂无日志...</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel" style="margin-top: 20px;">
+        <h2>🧪 女巫药水状态</h2>
+        <div id="witchPotions">
+          <p style="color: #aaa;">等待游戏开始...</p>
+        </div>
+      </div>
+      
+      <div class="panel" style="margin-top: 20px;">
+        <h2>🛡️ 守卫信息</h2>
+        <div id="guardInfo">
+          <p style="color: #aaa;">等待游戏开始...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const GOD_PASSWORD = 'godmode2024';
+    let isAuthenticated = false;
+    
+    const loginOverlay = document.getElementById('loginOverlay');
+    const passwordInput = document.getElementById('passwordInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    
+    function checkPassword() {
+      const password = passwordInput.value;
+      if (password === GOD_PASSWORD) {
+        isAuthenticated = true;
+        loginOverlay.style.display = 'none';
+        initApp();
+      } else {
+        loginError.style.display = 'block';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    }
+    
+    loginBtn.addEventListener('click', checkPassword);
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    function initApp() {
+      const socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000
+      });
+      let currentRoomId = null;
+      let gameState = null;
+      let logs = [];
+    
+    const ROLE_NAMES = {
+      werewolf: '狼人',
+      villager: '村民',
+      seer: '预言家',
+      witch: '女巫',
+      hunter: '猎人',
+      guard: '守卫'
+    };
+    
+    const PHASE_NAMES = {
+      waiting: '等待开始',
+      night: '天黑请闭眼',
+      night_werewolf_discuss: '狼人讨论',
+      night_werewolf: '狼人行动',
+      night_seer: '预言家行动',
+      night_witch: '女巫行动',
+      night_guard: '守卫行动',
+      day: '天亮了',
+      discussion: '发言阶段',
+      vote: '投票阶段',
+      vote_result: '投票结果',
+      hunter_shoot: '猎人开枪',
+      game_over: '游戏结束'
+    };
+    
+    function addLog(message, isSystem = false) {
+      const time = new Date().toLocaleTimeString();
+      logs.unshift({ time, message, isSystem });
+      if (logs.length > 50) logs.pop();
+      renderLogs();
+    }
+    
+    function renderLogs() {
+      const logDiv = document.getElementById('gameLog');
+      logDiv.innerHTML = logs.map(log => `
+        <div class="log-entry ${log.isSystem ? 'system' : ''}">
+          [${log.time}] ${log.message}
+        </div>
+      `).join('');
+    }
+    
+    function updateStatus(connected) {
+      const badge = document.getElementById('statusBadge');
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      
+      if (connected) {
+        badge.textContent = '已连接';
+        badge.className = 'status-badge status-connected';
+        connectBtn.classList.add('hidden');
+        disconnectBtn.classList.remove('hidden');
+      } else {
+        badge.textContent = '未连接';
+        badge.className = 'status-badge status-disconnected';
+        connectBtn.classList.remove('hidden');
+        disconnectBtn.classList.add('hidden');
+      }
+    }
+    
+    function renderPlayers() {
+      if (!gameState) return;
+      
+      const tbody = document.getElementById('playersTableBody');
+      tbody.innerHTML = gameState.players.map(p => `
+        <tr>
+          <td>${p.name} ${p.isHost ? '👑' : ''} ${p.disconnected ? '⚠️' : ''}</td>
+          <td>
+            <span class="role-badge role-${p.role || 'unknown'}">
+              ${ROLE_NAMES[p.role] || '???'}
+            </span>
+          </td>
+          <td class="${p.alive ? 'status-alive' : 'status-dead'}">
+            ${p.disconnected ? '断线' : (p.alive ? '存活' : '死亡')}
+          </td>
+          <td>${p.id.substring(0, 8)}...</td>
+        </tr>
+      `).join('');
+    }
+    
+    function renderGameInfo() {
+      if (!gameState) return;
+      
+      document.getElementById('displayRoomId').textContent = gameState.roomId;
+      document.getElementById('displayPhase').textContent = PHASE_NAMES[gameState.phase] || gameState.phase;
+      document.getElementById('displayDay').textContent = `第 ${gameState.day} 天`;
+      
+      const aliveCount = gameState.players.filter(p => p.alive).length;
+      document.getElementById('displayAlive').textContent = `${aliveCount}/${gameState.players.length}`;
+    }
+    
+    function renderNightActions() {
+      if (!gameState) return;
+      
+      const div = document.getElementById('nightActions');
+      const actions = [];
+      
+      if (gameState.nightActions) {
+        if (gameState.nightActions.werewolfKill) {
+          const target = gameState.players.find(p => p.id === gameState.nightActions.werewolfKill);
+          if (target) {
+            actions.push({ type: '狼刀', target: target.name });
+          }
+        }
+        if (gameState.nightActions.seerCheck) {
+          const target = gameState.players.find(p => p.id === gameState.nightActions.seerCheck);
+          if (target) {
+            actions.push({ type: '预言家查验', target: target.name });
+          }
+        }
+        if (gameState.nightActions.witchSave) {
+          actions.push({ type: '女巫使用解药', target: '救人' });
+        }
+        if (gameState.nightActions.witchPoison) {
+          const target = gameState.players.find(p => p.id === gameState.nightActions.witchPoison);
+          if (target) {
+            actions.push({ type: '女巫使用毒药', target: target.name });
+          }
+        }
+        if (gameState.nightActions.guardProtect) {
+          const target = gameState.players.find(p => p.id === gameState.nightActions.guardProtect);
+          if (target) {
+            actions.push({ type: '守卫守护', target: target.name });
+          }
+        }
+      }
+      
+      if (actions.length === 0) {
+        div.innerHTML = '<p style="color: #aaa;">暂无夜间行动记录</p>';
+      } else {
+        div.innerHTML = actions.map(a => `
+          <div class="action-item">
+            <span class="action-type">${a.type}</span>
+            <span class="action-target">→ ${a.target}</span>
+          </div>
+        `).join('');
+      }
+    }
+    
+    function renderWitchPotions() {
+      if (!gameState) return;
+      
+      const div = document.getElementById('witchPotions');
+      const witch = gameState.players.find(p => p.role === 'witch');
+      
+      if (!witch) {
+        div.innerHTML = '<p style="color: #aaa;">本局没有女巫</p>';
+        return;
+      }
+      
+      if (gameState.witchPotions) {
+        div.innerHTML = `
+          <div class="action-item">
+            <span>解药</span>
+            <span class="${gameState.witchPotions.antidote ? 'status-alive' : 'status-dead'}">
+              ${gameState.witchPotions.antidote ? '✅ 可用' : '❌ 已使用'}
+            </span>
+          </div>
+          <div class="action-item">
+            <span>毒药</span>
+            <span class="${gameState.witchPotions.poison ? 'status-alive' : 'status-dead'}">
+              ${gameState.witchPotions.poison ? '✅ 可用' : '❌ 已使用'}
+            </span>
+          </div>
+        `;
+      } else {
+        div.innerHTML = '<p style="color: #aaa;">游戏未开始</p>';
+      }
+    }
+    
+    function renderGuardInfo() {
+      if (!gameState) return;
+      
+      const div = document.getElementById('guardInfo');
+      const guard = gameState.players.find(p => p.role === 'guard');
+      
+      if (!guard) {
+        div.innerHTML = '<p style="color: #aaa;">本局没有守卫</p>';
+        return;
+      }
+      
+      if (gameState.guardInfo && gameState.guardInfo.lastGuardedPlayerName) {
+        div.innerHTML = `
+          <div class="action-item">
+            <span>上晚守护</span>
+            <span class="action-target">${gameState.guardInfo.lastGuardedPlayerName}</span>
+          </div>
+        `;
+      } else {
+        div.innerHTML = '<p style="color: #aaa;">暂无守护记录</p>';
+      }
+    }
+    
+    function renderAll() {
+      renderPlayers();
+      renderGameInfo();
+      renderNightActions();
+      renderWitchPotions();
+      renderGuardInfo();
+    }
+    
+    document.getElementById('connectBtn').addEventListener('click', () => {
+      const roomId = document.getElementById('roomIdInput').value.trim().toUpperCase();
+      if (!roomId) {
+        alert('请输入房间号');
+        return;
+      }
+      currentRoomId = roomId;
+      socket.emit('godJoin', { roomId });
+    });
+    
+    document.getElementById('disconnectBtn').addEventListener('click', () => {
+      socket.emit('godLeave');
+      currentRoomId = null;
+      gameState = null;
+      updateStatus(false);
+      document.getElementById('gamePanel').classList.add('hidden');
+      document.getElementById('roomsPanel').classList.remove('hidden');
+    });
+    
+    socket.on('connect', () => {
+      addLog('已连接到服务器', true);
+      socket.emit('getRooms');
+    });
+    
+    socket.on('disconnect', () => {
+      addLog('与服务器断开连接', true);
+      updateStatus(false);
+    });
+    
+    socket.on('roomsList', (rooms) => {
+      const div = document.getElementById('roomsList');
+      if (rooms.length === 0) {
+        div.innerHTML = '<p style="color: #aaa;">暂无在线房间</p>';
+        return;
+      }
+      
+      div.innerHTML = rooms.map(room => `
+        <div class="room-item" data-room="${room.roomId}">
+          <div>
+            <span class="room-id">${room.roomId}</span>
+            <span class="room-players"> - ${room.playerCount}人 ${room.phase === 'waiting' ? '等待中' : '游戏中'}</span>
+          </div>
+          <button class="btn btn-success btn-small">加入</button>
+        </div>
+      `).join('');
+      
+      div.querySelectorAll('.room-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const roomId = item.dataset.room;
+          document.getElementById('roomIdInput').value = roomId;
+          currentRoomId = roomId;
+          socket.emit('godJoin', { roomId });
+        });
+      });
+    });
+    
+    socket.on('godJoined', (data) => {
+      gameState = data;
+      updateStatus(true);
+      document.getElementById('gamePanel').classList.remove('hidden');
+      document.getElementById('roomsPanel').classList.add('hidden');
+      renderAll();
+      addLog(`成功加入房间 ${data.roomId}`, true);
+    });
+    
+    socket.on('godUpdate', (data) => {
+      gameState = data;
+      renderAll();
+    });
+    
+    socket.on('error', (data) => {
+      alert(data.message);
+    });
+    
+    setInterval(() => {
+      if (socket.connected) {
+        socket.emit('getRooms');
+      }
+    }, 5000);
+    }
+  </script>
+  <div class="author-footer" style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 8px; font-size: 12px; color: rgba(255,255,255,0.4); background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); z-index: 100; pointer-events: none; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;"><span>Made by Xyihang and GLM-5</span><span style="opacity:0.5">|</span><span>由 Xyihang 和 GLM-5 制作</span></div>
+</body>
+</html>

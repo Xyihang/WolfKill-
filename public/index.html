@@ -1,0 +1,179 @@
+<!--
+  局域网狼人杀游戏 - 主页面
+  Made by Xyihang and GLM-5 / 由 Xyihang 和 GLM-5 制作
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>狼人杀 - 局域网游戏</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="lobby" class="screen active">
+      <div class="container">
+        <h1>🐺 狼人杀</h1>
+        <p class="subtitle">局域网多人游戏</p>
+        
+        <div class="lobby-card">
+          <div class="quick-actions">
+            <button id="createRoomBtn" class="btn btn-primary btn-large">
+              <span class="btn-icon">🏠</span>
+              <span>创建房间</span>
+            </button>
+            <div class="or-divider">或</div>
+            <div class="join-group compact">
+              <input type="text" id="roomIdInput" placeholder="输入房间号" maxlength="6">
+              <button id="joinRoomBtn" class="btn btn-secondary">加入</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="quick-join-card" id="quickJoinCard" style="display: none;">
+          <h4>快速加入</h4>
+          <div id="recentRooms" class="recent-rooms"></div>
+        </div>
+        
+        <div class="rules-card">
+          <h3>游戏规则</h3>
+          <div class="rules-content">
+            <div class="role-info">
+              <span class="role-icon">🐺</span>
+              <strong>狼人</strong>：每晚可杀死一名玩家
+            </div>
+            <div class="role-info">
+              <span class="role-icon">👁️</span>
+              <strong>预言家</strong>：每晚可查验一名玩家身份
+            </div>
+            <div class="role-info">
+              <span class="role-icon">🧙</span>
+              <strong>女巫</strong>：拥有解药和毒药各一瓶
+            </div>
+            <div class="role-info">
+              <span class="role-icon">🎯</span>
+              <strong>猎人</strong>：死亡时可开枪带走一人
+            </div>
+            <div class="role-info">
+              <span class="role-icon">👤</span>
+              <strong>村民</strong>：通过投票找出狼人
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="waitingRoom" class="screen">
+      <div class="waiting-container">
+        <div class="room-header compact">
+          <div class="room-info">
+            <span class="room-label">房间号</span>
+            <span id="displayRoomId" class="room-id"></span>
+          </div>
+          <button id="copyRoomIdBtn" class="btn btn-small">复制</button>
+        </div>
+        
+        <div class="players-section compact">
+          <div class="players-header">
+            <h3>玩家 <span id="playerCount">0</span>/10</h3>
+            <div id="hostBadge" class="host-badge" style="display: none;">👑 房主</div>
+          </div>
+          <div id="playersList" class="players-grid compact"></div>
+        </div>
+        
+        <div class="waiting-actions compact">
+          <div id="startHint" class="hint-text"></div>
+          <div class="action-buttons">
+            <button id="startGameBtn" class="btn btn-primary" disabled>开始游戏</button>
+            <button id="leaveWaitingRoomBtn" class="btn btn-danger">离开</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="gameRoom" class="screen">
+      <div class="game-container">
+        <div class="game-header">
+          <div class="phase-info">
+            <span id="phaseName" class="phase-name">等待开始</span>
+            <span id="dayCount" class="day-count"></span>
+          </div>
+          <div class="room-id-small">
+            <span>房间: </span>
+            <span id="gameRoomId"></span>
+          </div>
+        </div>
+
+        <div class="game-body">
+          <div class="left-panel">
+            <div class="role-card" id="roleCard">
+              <div class="role-header">
+                <span id="roleIcon" class="role-icon-large">❓</span>
+                <div class="role-text">
+                  <span id="roleName" class="role-name">???</span>
+                  <span id="roleStatus" class="role-status">存活</span>
+                </div>
+              </div>
+              <p id="roleDescription" class="role-description"></p>
+              <div id="roleExtra" class="role-extra"></div>
+            </div>
+
+            <div class="players-panel">
+              <h4>玩家状态</h4>
+              <div id="gamePlayersList" class="game-players-list"></div>
+            </div>
+          </div>
+
+          <div class="center-panel">
+            <div class="action-panel" id="actionPanel">
+              <div class="action-content" id="actionContent">
+                <p class="waiting-text">等待游戏开始...</p>
+              </div>
+            </div>
+
+            <div class="chat-panel">
+              <div id="chatMessages" class="chat-messages"></div>
+              <div class="chat-input-group">
+                <input type="text" id="chatInput" placeholder="输入消息...">
+                <button id="sendChatBtn" class="btn btn-small">发送</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="right-panel">
+            <div class="game-log">
+              <h4>游戏日志</h4>
+              <div id="gameLog" class="log-content"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-footer">
+          <button id="resetGameBtn" class="btn btn-secondary" style="display: none;">重新开始</button>
+          <button id="leaveGameRoomBtn" class="btn btn-danger" style="display: none;">返回大厅</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal" class="modal">
+      <div class="modal-content">
+        <h3 id="modalTitle"></h3>
+        <p id="modalMessage"></p>
+        <div id="modalActions" class="modal-actions"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <div class="author-footer">
+    <span>Made by Xyihang and GLM-5</span>
+    <span class="author-divider">|</span>
+    <span>由 Xyihang 和 GLM-5 制作</span>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
