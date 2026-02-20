@@ -1791,6 +1791,22 @@ h1 {
     font-size: 1rem;
   }
   
+  .join-group.compact {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .join-group.compact input {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 0.95rem;
+  }
+  
+  .join-group.compact .btn {
+    width: 100%;
+    padding: 12px;
+  }
+  
   .room-id {
     font-size: 1.5rem;
     letter-spacing: 3px;
@@ -2002,6 +2018,19 @@ h1 {
 }
 
 @media (max-width: 480px) {
+  .join-group.compact {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .join-group.compact input {
+    width: 100%;
+  }
+  
+  .join-group.compact .btn {
+    width: 100%;
+  }
+  
   .author-footer {
     font-size: 0.65rem;
     padding: 6px;
