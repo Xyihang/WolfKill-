@@ -1139,8 +1139,6 @@ h1 {
   position: relative;
   z-index: 101;
   margin-bottom: 30px;
-}  position: relative;
-  z-index: 101;
 }
 
 .modal {
@@ -1741,7 +1739,6 @@ h1 {
     font-size: 0.8rem;
     padding: 8px 10px;
   }
-}
   
   .vote-result-panel {
     width: 100%;
@@ -1960,114 +1957,6 @@ h1 {
   }
   
   .role-info {
-    padding: 8px;
-    font-size: 0.85rem;
-  }
-}
-
-/* 超小屏幕 */
-@media (max-width: 380px) {
-  .container {
-    padding: 15px;
-  }
-  
-  h1 {
-    font-size: 1.8rem;
-  }
-  
-  .lobby-card {
-    padding: 18px;
-  }
-  
-  .btn {
-    padding: 12px 20px;
-  }
-  
-  .join-group.compact {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .join-group.compact input {
-    width: 100%;
-    padding: 12px 15px;
-  }
-  
-  .join-group.compact .btn {
-    width: 100%;
-    padding: 12px;
-  }
-  
-  .room-id {
-    font-size: 1.5rem;
-    letter-spacing: 3px;
-  }
-  
-  .role-card {
-    width: 120px;
-    padding: 10px;
-  }
-  
-  .role-icon-large {
-    font-size: 1.8rem;
-  }
-  
-  .role-name {
-    font-size: 1rem;
-  }
-  
-  .players-list {
-    grid-template-columns: 1fr;
-  }
-  
-  .target-list {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* 横屏手机 */
-@media (max-height: 500px) and (orientation: landscape) {
-  .game-body {
-    grid-template-columns: 200px 1fr 180px;
-    gap: 8px;
-    padding: 8px;
-  }
-  
-  .left-panel {
-    gap: 8px;
-  }
-  
-  .role-card {
-    padding: 10px;
-  }
-  
-  .role-icon-large {
-    font-size: 2rem;
-  }
-  
-  .players-panel {
-    padding: 10px;
-  }
-  
-  .chat-panel {
-    height: 100px;
-  }
-  
-  .action-panel {
-    padding: 10px;
-  }
-  
-  .action-title {
-    font-size: 1.1rem;
-    margin-bottom: 8px;
-  }
-  
-  .target-list {
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 6px;
-  }
-  
-  .target-btn {
     padding: 8px;
     font-size: 0.85rem;
   }
