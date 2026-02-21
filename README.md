@@ -1,8 +1,10 @@
 # 局域网狼人杀游戏
 
 一个基于 Node.js + Socket.IO 的局域网狼人杀游戏，支持多人在线对战。
-目前已经上云到replit平台(https://wolf-kill--xiyihang360.replit.app/)
-V1.3Beta -- 增加2个新角色，优化了一些功能
+
+目前已经上云到replit平台(https://wolf-kill--xiyihang360.replit.app
+
+ 目前版本：V1.3Beta -- 增加2个新角色，优化了一些功能
 ## 目录
 - [功能特性](#功能特性)
 - [技术架构](#技术架构)
