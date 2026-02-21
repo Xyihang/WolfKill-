@@ -28,6 +28,20 @@ const playerNames = new Map();
 const disconnectTimers = new Map();
 const RECONNECT_TIMEOUT = 15000;
 
+function getGameOverData(game, winner) {
+  const players = game.getPlayers().map(p => ({
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    alive: p.alive
+  }));
+  
+  return {
+    winner,
+    players
+  };
+}
+
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
@@ -194,7 +208,7 @@ function processNightPhase(game, roomId) {
   
   const win = game.checkWinCondition();
   if (win) {
-    io.to(roomId).emit('gameOver', { winner: win });
+    io.to(roomId).emit('gameOver', getGameOverData(game, win));
     return;
   }
   
@@ -208,7 +222,7 @@ function processNightPhase(game, roomId) {
         game.hunterCanShoot = false;
         proceedToDiscussion(game, roomId);
       }
-    }, 10000);
+    }, 15000);
     return;
   }
   
@@ -221,7 +235,7 @@ function proceedToDiscussion(game, roomId) {
   const win = game.checkWinCondition();
   if (win) {
     broadcastGameState(game);
-    io.to(roomId).emit('gameOver', { winner: win });
+    io.to(roomId).emit('gameOver', getGameOverData(game, win));
     return;
   }
   
@@ -279,9 +293,21 @@ function processVoteResult(game, roomId) {
   broadcastGameState(game);
   io.to(roomId).emit('voteResult', voteResult);
   
+  if (voteResult.idiotRevealed) {
+    const win = game.checkWinCondition();
+    if (win) {
+      io.to(roomId).emit('gameOver', getGameOverData(game, win));
+      return;
+    }
+    setTimeout(() => {
+      proceedToNextNight(game, roomId);
+    }, 3000);
+    return;
+  }
+  
   const win = game.checkWinCondition();
   if (win) {
-    io.to(roomId).emit('gameOver', { winner: win });
+    io.to(roomId).emit('gameOver', getGameOverData(game, win));
     return;
   }
   
@@ -295,7 +321,7 @@ function processVoteResult(game, roomId) {
         game.hunterCanShoot = false;
         proceedToNextNight(game, roomId);
       }
-    }, 10000);
+    }, 15000);
   } else {
     setTimeout(() => {
       proceedToNextNight(game, roomId);
@@ -307,7 +333,7 @@ function proceedToNextNight(game, roomId) {
   const win = game.checkWinCondition();
   if (win) {
     broadcastGameState(game);
-    io.to(roomId).emit('gameOver', { winner: win });
+    io.to(roomId).emit('gameOver', getGameOverData(game, win));
     return;
   }
   
@@ -536,7 +562,7 @@ io.on('connection', (socket) => {
     
     switch (game.phase) {
       case GAME_PHASES.NIGHT_WEREWOLF:
-        if (player.role === ROLES.WEREWOLF) {
+        if (player.role === ROLES.WEREWOLF || player.role === ROLES.WHITE_WOLF) {
           if (!game.nightActions.werewolfVotes) {
             game.nightActions.werewolfVotes = {};
           }
@@ -664,7 +690,7 @@ io.on('connection', (socket) => {
         
         const win = game.checkWinCondition();
         if (win) {
-          io.to(roomId).emit('gameOver', { winner: win });
+          io.to(roomId).emit('gameOver', getGameOverData(game, win));
         } else {
           setTimeout(() => {
             if (context === 'night') {
@@ -677,6 +703,84 @@ io.on('connection', (socket) => {
       } else {
         socket.emit('error', { message: result.message });
       }
+    }
+  });
+
+  socket.on('whiteWolfExplode', (data) => {
+    const roomId = playerRooms.get(socket.id);
+    const game = rooms.get(roomId);
+    
+    if (!game || game.phase !== GAME_PHASES.DISCUSSION) return;
+    
+    const result = game.whiteWolfExplode(socket.id, data.targetId);
+    if (result.success) {
+      io.to(roomId).emit('whiteWolfExploded', result);
+      
+      if (game.timers && game.timers.discussion) {
+        clearInterval(game.timers.discussion);
+      }
+      
+      broadcastGameState(game);
+      
+      const win = game.checkWinCondition();
+      if (win) {
+        game.actionInProgress = false;
+        io.to(roomId).emit('gameOver', getGameOverData(game, win));
+      } else {
+        setTimeout(() => {
+          game.actionInProgress = false;
+          game.startNight();
+          broadcastGameState(game);
+          startWerewolfDiscussTimer(game, roomId);
+        }, 2000);
+      }
+    } else {
+      socket.emit('error', { message: result.message });
+    }
+  });
+
+  socket.on('knightDuel', (data) => {
+    const roomId = playerRooms.get(socket.id);
+    const game = rooms.get(roomId);
+    
+    if (!game || game.phase !== GAME_PHASES.DISCUSSION) return;
+    
+    const result = game.knightDuel(socket.id, data.targetId);
+    if (result.success) {
+      io.to(roomId).emit('knightDueled', result);
+      broadcastGameState(game);
+      
+      if (result.duelSuccess) {
+        if (game.timers && game.timers.discussion) {
+          clearInterval(game.timers.discussion);
+        }
+        
+        const win = game.checkWinCondition();
+        if (win) {
+          game.actionInProgress = false;
+          io.to(roomId).emit('gameOver', getGameOverData(game, win));
+        } else {
+          setTimeout(() => {
+            game.actionInProgress = false;
+            game.startNight();
+            broadcastGameState(game);
+            startWerewolfDiscussTimer(game, roomId);
+          }, 2000);
+        }
+      } else {
+        const win = game.checkWinCondition();
+        if (win) {
+          game.actionInProgress = false;
+          if (game.timers && game.timers.discussion) {
+            clearInterval(game.timers.discussion);
+          }
+          io.to(roomId).emit('gameOver', getGameOverData(game, win));
+        } else {
+          game.actionInProgress = false;
+        }
+      }
+    } else {
+      socket.emit('error', { message: result.message });
     }
   });
 
@@ -710,10 +814,10 @@ io.on('connection', (socket) => {
     if (game.phase !== GAME_PHASES.NIGHT_WEREWOLF_DISCUSS) return;
     
     const player = game.getPlayer(socket.id);
-    if (!player || player.role !== ROLES.WEREWOLF || !player.alive) return;
+    if (!player || (player.role !== ROLES.WEREWOLF && player.role !== ROLES.WHITE_WOLF) || !player.alive) return;
     
     game.players.forEach((p, id) => {
-      if (p.role === ROLES.WEREWOLF && p.alive) {
+      if ((p.role === ROLES.WEREWOLF || p.role === ROLES.WHITE_WOLF) && p.alive) {
         io.to(id).emit('werewolfChat', {
           playerId: socket.id,
           playerName: player.name,

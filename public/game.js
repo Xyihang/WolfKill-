@@ -17,6 +17,30 @@ console.log('Page load, session from sessionStorage:', { currentRoomId, currentP
 let gameState = null;
 let selectedTarget = null;
 
+const ROLE_NAMES = {
+  'werewolf': '狼人',
+  'white_wolf': '白狼王',
+  'villager': '村民',
+  'seer': '预言家',
+  'witch': '女巫',
+  'hunter': '猎人',
+  'guard': '守卫',
+  'idiot': '白痴',
+  'knight': '骑士'
+};
+
+const ROLE_CAMP = {
+  'werewolf': 'werewolf',
+  'white_wolf': 'werewolf',
+  'villager': 'good',
+  'seer': 'good',
+  'witch': 'good',
+  'hunter': 'good',
+  'guard': 'good',
+  'idiot': 'good',
+  'knight': 'good'
+};
+
 function saveSession() {
   if (currentRoomId) sessionStorage.setItem('lrs_roomId', currentRoomId);
   if (currentPlayerName) {
@@ -50,14 +74,18 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-function showModal(title, message, actions = []) {
+function showModal(title, message, actions = [], isHtml = false) {
   const modal = document.getElementById('modal');
   const modalTitle = document.getElementById('modalTitle');
   const modalMessage = document.getElementById('modalMessage');
   const modalActions = document.getElementById('modalActions');
   
   modalTitle.textContent = title;
-  modalMessage.textContent = message;
+  if (isHtml) {
+    modalMessage.innerHTML = message;
+  } else {
+    modalMessage.textContent = message;
+  }
   modalActions.innerHTML = '';
   
   actions.forEach(action => {
@@ -152,11 +180,12 @@ function updatePlayersList() {
       
       let statusIcon = player.alive ? '💚' : '💀';
       if (player.disconnected) statusIcon = '⚠️';
+      if (player.idiotRevealed) statusIcon = '🤪';
       const roleIcon = getRoleIcon(player.role);
       
       playerItem.innerHTML = `
         <span class="player-status-icon">${statusIcon}</span>
-        <span class="player-name">${player.name}${player.id === socket.id ? ' (我)' : ''}${player.disconnected ? ' (断线)' : ''}</span>
+        <span class="player-name">${player.name}${player.id === socket.id ? ' (我)' : ''}${player.disconnected ? ' (断线)' : ''}${player.idiotRevealed ? ' (已翻牌)' : ''}</span>
         ${gameState.phase === 'game_over' && player.role ? `<span class="role-icon">${roleIcon}</span>` : ''}
       `;
       
@@ -168,11 +197,14 @@ function updatePlayersList() {
 function getRoleIcon(role) {
   const icons = {
     werewolf: '🐺',
+    white_wolf: '🐺‍❄️',
     villager: '👤',
     seer: '👁️',
     witch: '🧙',
     hunter: '🎯',
-    guard: '🛡️'
+    guard: '🛡️',
+    idiot: '🤪',
+    knight: '⚔️'
   };
   return icons[role] || '❓';
 }
@@ -217,6 +249,30 @@ function updateRoleCard() {
         resultsDiv.innerHTML += `${r.targetName}: ${r.isWerewolf ? '🐺 狼人' : '👤 好人'}<br>`;
       });
       roleExtra.appendChild(resultsDiv);
+    }
+    
+    if (gameState.myRole === 'idiot') {
+      const idiotDiv = document.createElement('div');
+      idiotDiv.innerHTML = gameState.idiotRevealed 
+        ? '🤪 已翻牌，无法投票' 
+        : '翻牌后可免死，但失去投票权';
+      roleExtra.appendChild(idiotDiv);
+    }
+    
+    if (gameState.myRole === 'knight') {
+      const knightDiv = document.createElement('div');
+      knightDiv.innerHTML = gameState.knightDuelUsed 
+        ? '⚔️ 决斗技能已使用' 
+        : '⚔️ 决斗技能可用';
+      roleExtra.appendChild(knightDiv);
+    }
+    
+    if (gameState.myRole === 'white_wolf') {
+      const whiteWolfDiv = document.createElement('div');
+      whiteWolfDiv.innerHTML = gameState.canExplode 
+        ? '💥 可在发言阶段自爆带人' 
+        : '自爆技能已使用或不可用';
+      roleExtra.appendChild(whiteWolfDiv);
     }
   } else {
     roleIcon.textContent = '❓';
@@ -263,7 +319,7 @@ function updateActionPanel() {
       break;
       
     case 'night_werewolf_discuss':
-      if (gameState.myRole === 'werewolf' && gameState.isAlive) {
+      if ((gameState.myRole === 'werewolf' || gameState.myRole === 'white_wolf') && gameState.isAlive) {
         renderWerewolfDiscuss(actionContent);
       } else {
         actionContent.innerHTML = `
@@ -274,7 +330,7 @@ function updateActionPanel() {
       break;
       
     case 'night_werewolf':
-      if (gameState.myRole === 'werewolf' && gameState.isAlive) {
+      if ((gameState.myRole === 'werewolf' || gameState.myRole === 'white_wolf') && gameState.isAlive) {
         renderWerewolfAction(actionContent);
       } else {
         actionContent.innerHTML = `
@@ -336,16 +392,41 @@ function updateActionPanel() {
       break;
       
     case 'discussion':
+      let discussionExtra = '';
+      if (gameState.canExplode) {
+        discussionExtra += `<button id="whiteWolfExplodeBtn" class="btn btn-danger btn-small" style="margin-top: 10px;">💥 自爆带人</button>`;
+      }
+      if (gameState.canDuel) {
+        discussionExtra += `<button id="knightDuelBtn" class="btn btn-primary btn-small" style="margin-top: 10px;">⚔️ 发动决斗</button>`;
+      }
       actionContent.innerHTML = `
         <div class="action-title">💬 发言阶段</div>
         <p class="action-description">请自由发言讨论</p>
         <div class="timer-display" id="timerDisplay">⏱️ <span id="timerValue">60</span>秒</div>
+        <div class="special-actions">${discussionExtra}</div>
       `;
+      
+      if (gameState.canExplode) {
+        document.getElementById('whiteWolfExplodeBtn').addEventListener('click', () => {
+          showWhiteWolfExplodeModal();
+        });
+      }
+      if (gameState.canDuel) {
+        document.getElementById('knightDuelBtn').addEventListener('click', () => {
+          showKnightDuelModal();
+        });
+      }
       break;
       
     case 'vote':
-      if (gameState.isAlive) {
+      if (gameState.isAlive && !gameState.idiotRevealed) {
         renderVoteAction(actionContent);
+      } else if (gameState.idiotRevealed) {
+        actionContent.innerHTML = `
+          <div class="action-title">🗳️ 投票阶段</div>
+          <p class="action-description">你已翻牌，无法投票</p>
+          <div class="timer-display">⏱️ <span id="timerValue">30</span>秒</div>
+        `;
       } else {
         actionContent.innerHTML = `
           <div class="action-title">🗳️ 投票阶段</div>
@@ -676,7 +757,7 @@ function renderWitchAction(container) {
 }
 
 function renderVoteAction(container) {
-  const alivePlayers = gameState.players.filter(p => p.alive);
+  const alivePlayers = gameState.players.filter(p => p.alive && !p.idiotRevealed);
   
   container.innerHTML = `
     <div class="action-title">🗳️ 投票阶段</div>
@@ -747,7 +828,15 @@ function renderVoteResult(container) {
     }
   });
   
-  if (voteResult.tie) {
+  if (voteResult.idiotRevealed) {
+    html += `
+      </div>
+      <div class="idiot-reveal-announcement">
+        <span class="name">${voteResult.idiotPlayer.name}</span> 🤪 翻牌亮明白痴身份，免于放逐！
+      </div>
+      <p class="action-description">白痴失去投票权与被投票权，即将进入黑夜...</p>
+    `;
+  } else if (voteResult.tie) {
     html += `
       </div>
       <p class="action-description">平票！无人被放逐</p>
@@ -814,24 +903,42 @@ function renderGameOver(container) {
   const winner = gameState.winner;
   const winnerText = winner === 'werewolf' ? '🐺 狼人阵营胜利！' : '👥 好人阵营胜利！';
   
+  const players = gameState.finalPlayers || gameState.players || [];
+  
+  const werewolfPlayers = players.filter(p => p && ROLE_CAMP[p.role] === 'werewolf');
+  const goodPlayers = players.filter(p => p && ROLE_CAMP[p.role] === 'good');
+  
   let html = `
     <div class="game-over-panel">
       <div class="winner-announcement ${winner}">
         ${winnerText}
       </div>
       <div class="role-reveal">
-  `;
-  
-  gameState.players.forEach(player => {
-    html += `
-      <div class="role-reveal-item">
-        <div class="name">${player.name}</div>
-        <div class="role">${player.roleName || ''}</div>
+        <div class="camp-section">
+          <div class="camp-title werewolf-camp">🐺 狼人阵营</div>
+          <div class="camp-players">
+            ${werewolfPlayers.length > 0 ? werewolfPlayers.map(player => `
+              <div class="role-reveal-item ${player.alive ? '' : 'dead'}">
+                <div class="name">${player.name} ${!player.alive ? '💀' : ''}</div>
+                <div class="role">${ROLE_NAMES[player.role] || player.role}</div>
+              </div>
+            `).join('') : '<div class="no-players">无</div>'}
+          </div>
+        </div>
+        <div class="camp-section">
+          <div class="camp-title good-camp">👥 好人阵营</div>
+          <div class="camp-players">
+            ${goodPlayers.length > 0 ? goodPlayers.map(player => `
+              <div class="role-reveal-item ${player.alive ? '' : 'dead'}">
+                <div class="name">${player.name} ${!player.alive ? '💀' : ''}</div>
+                <div class="role">${ROLE_NAMES[player.role] || player.role}</div>
+              </div>
+            `).join('') : '<div class="no-players">无</div>'}
+          </div>
+        </div>
       </div>
-    `;
-  });
-  
-  html += '</div></div>';
+    </div>
+  `;
   container.innerHTML = html;
 }
 
@@ -1095,6 +1202,24 @@ socket.on('hunterShot', (data) => {
   showToast(`猎人开枪带走了 ${data.name}`);
 });
 
+socket.on('whiteWolfExploded', (data) => {
+  addLog(`白狼王 ${data.whiteWolf.name} 自爆带走了 ${data.target.name}`, true);
+  addChatMessage({ system: true, message: `白狼王 ${data.whiteWolf.name} 自爆带走了 ${data.target.name}` });
+  showToast(`白狼王自爆带走了 ${data.target.name}`);
+});
+
+socket.on('knightDueled', (data) => {
+  if (data.duelSuccess) {
+    addLog(`骑士 ${data.knight.name} 决斗成功，${data.target.name} 是狼人！`, true);
+    addChatMessage({ system: true, message: `骑士 ${data.knight.name} 决斗成功！${data.target.name} 是狼人，直接出局！` });
+    showToast(`决斗成功！${data.target.name} 是狼人`);
+  } else {
+    addLog(`骑士 ${data.knight.name} 决斗失败，${data.target.name} 是好人`, true);
+    addChatMessage({ system: true, message: `骑士 ${data.knight.name} 决斗失败，${data.target.name} 是好人，骑士出局！` });
+    showToast(`决斗失败，骑士出局`);
+  }
+});
+
 socket.on('gameOver', (data) => {
   const winnerText = data.winner === 'werewolf' ? '狼人阵营' : '好人阵营';
   addLog(`游戏结束！${winnerText}胜利！`, true);
@@ -1103,6 +1228,14 @@ socket.on('gameOver', (data) => {
   if (gameState) {
     gameState.phase = 'game_over';
     gameState.winner = data.winner;
+    gameState.finalPlayers = data.players;
+    gameState.players = gameState.players.map(p => {
+      const finalPlayer = data.players.find(fp => fp.id === p.id);
+      if (finalPlayer) {
+        return { ...p, role: finalPlayer.role, alive: finalPlayer.alive };
+      }
+      return p;
+    });
     updateUI();
   }
 });
@@ -1189,4 +1322,79 @@ if (currentRoomId && currentPlayerName && !reconnectAttempted) {
       socket.off('connect', autoReconnect);
     });
   }
+}
+
+function showWhiteWolfExplodeModal() {
+  const alivePlayers = gameState.players.filter(p => p.alive && p.id !== socket.id);
+  
+  const content = `
+    <div class="modal-target-list">
+      <p style="margin-bottom: 15px; color: #fbbf24;">⚠️ 自爆后你将死亡，并带走一名玩家</p>
+      <div class="target-list">
+        ${alivePlayers.map(p => `
+          <button class="target-btn explode-target" data-id="${p.id}" data-name="${p.name}">
+            ${p.name}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  
+  showModal('💥 白狼王自爆', content, [
+    { text: '取消', class: 'btn-secondary' }
+  ], true);
+  
+  setTimeout(() => {
+    document.querySelectorAll('.explode-target').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.id;
+        const targetName = btn.dataset.name;
+        hideModal();
+        showModal('确认自爆', `确定要自爆并带走 ${targetName} 吗？`, [
+          { text: '取消', class: 'btn-secondary' },
+          { text: '确认自爆', class: 'btn-danger', callback: () => {
+            socket.emit('whiteWolfExplode', { targetId });
+          }}
+        ]);
+      });
+    });
+  }, 100);
+}
+
+function showKnightDuelModal() {
+  const alivePlayers = gameState.players.filter(p => p.alive && p.id !== socket.id);
+  
+  const content = `
+    <div class="modal-target-list">
+      <p style="margin-bottom: 15px; color: #4ade80;">⚔️ 决斗技能整局只能发动一次！</p>
+      <p style="margin-bottom: 15px; color: #aaa; font-size: 0.9rem;">目标是狼人：狼人出局，直接进黑夜<br>目标是好人：骑士出局，继续发言投票</p>
+      <div class="target-list">
+        ${alivePlayers.map(p => `
+          <button class="target-btn duel-target" data-id="${p.id}" data-name="${p.name}">
+            ${p.name}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  
+  showModal('⚔️ 骑士决斗', content, [
+    { text: '取消', class: 'btn-secondary' }
+  ], true);
+  
+  setTimeout(() => {
+    document.querySelectorAll('.duel-target').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.id;
+        const targetName = btn.dataset.name;
+        hideModal();
+        showModal('确认决斗', `确定要对 ${targetName} 发动决斗吗？`, [
+          { text: '取消', class: 'btn-secondary' },
+          { text: '确认决斗', class: 'btn-primary', callback: () => {
+            socket.emit('knightDuel', { targetId });
+          }}
+        ]);
+      });
+    });
+  }, 100);
 }

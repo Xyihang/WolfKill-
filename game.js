@@ -4,29 +4,38 @@
  */
 const ROLES = {
   WEREWOLF: 'werewolf',
+  WHITE_WOLF: 'white_wolf',
   VILLAGER: 'villager',
   SEER: 'seer',
   WITCH: 'witch',
   HUNTER: 'hunter',
-  GUARD: 'guard'
+  GUARD: 'guard',
+  IDIOT: 'idiot',
+  KNIGHT: 'knight'
 };
 
 const ROLE_NAMES = {
   [ROLES.WEREWOLF]: '狼人',
+  [ROLES.WHITE_WOLF]: '白狼王',
   [ROLES.VILLAGER]: '村民',
   [ROLES.SEER]: '预言家',
   [ROLES.WITCH]: '女巫',
   [ROLES.HUNTER]: '猎人',
-  [ROLES.GUARD]: '守卫'
+  [ROLES.GUARD]: '守卫',
+  [ROLES.IDIOT]: '白痴',
+  [ROLES.KNIGHT]: '骑士'
 };
 
 const ROLE_DESCRIPTIONS = {
   [ROLES.WEREWOLF]: '每晚可以选择杀死一名玩家',
+  [ROLES.WHITE_WOLF]: '白天发言阶段可自爆并带走一名玩家',
   [ROLES.VILLAGER]: '普通村民，没有特殊能力',
   [ROLES.SEER]: '每晚可以查验一名玩家的身份',
   [ROLES.WITCH]: '拥有一瓶解药和一瓶毒药',
   [ROLES.HUNTER]: '死亡时可以开枪带走一名玩家',
-  [ROLES.GUARD]: '每晚可以守护一名玩家免受狼刀，不能连续两晚守同一人'
+  [ROLES.GUARD]: '每晚可以守护一名玩家免受狼刀，不能连续两晚守同一人',
+  [ROLES.IDIOT]: '被投票放逐时可翻牌免死，但失去投票权',
+  [ROLES.KNIGHT]: '白天发言阶段可决斗一名玩家，整局只能发动一次'
 };
 
 const GAME_PHASES = {
@@ -42,6 +51,8 @@ const GAME_PHASES = {
   VOTE: 'vote',
   VOTE_RESULT: 'vote_result',
   HUNTER_SHOOT: 'hunter_shoot',
+  WHITE_WOLF_EXPLODE: 'white_wolf_explode',
+  KNIGHT_DUEL: 'knight_duel',
   GAME_OVER: 'game_over'
 };
 
@@ -58,17 +69,19 @@ const PHASE_NAMES = {
   [GAME_PHASES.VOTE]: '投票阶段',
   [GAME_PHASES.VOTE_RESULT]: '投票结果',
   [GAME_PHASES.HUNTER_SHOOT]: '猎人开枪',
+  [GAME_PHASES.WHITE_WOLF_EXPLODE]: '白狼王自爆',
+  [GAME_PHASES.KNIGHT_DUEL]: '骑士决斗',
   [GAME_PHASES.GAME_OVER]: '游戏结束'
 };
 
 function getRoleConfig(playerCount) {
   const configs = {
-    5: { werewolf: 1, seer: 1, witch: 1, hunter: 0, guard: 1, villager: 1 },
-    6: { werewolf: 2, seer: 1, witch: 1, hunter: 0, guard: 1, villager: 1 },
-    7: { werewolf: 2, seer: 1, witch: 1, hunter: 1, guard: 1, villager: 1 },
-    8: { werewolf: 2, seer: 1, witch: 1, hunter: 1, guard: 1, villager: 2 },
-    9: { werewolf: 3, seer: 1, witch: 1, hunter: 1, guard: 1, villager: 2 },
-    10: { werewolf: 3, seer: 1, witch: 1, hunter: 1, guard: 1, villager: 3 }
+    5: { werewolf: 1, whiteWolf: 0, seer: 1, witch: 1, hunter: 0, guard: 1, idiot: 1, knight: 0, villager: 0 },
+    6: { werewolf: 1, whiteWolf: 0, seer: 1, witch: 1, hunter: 1, guard: 1, idiot: 1, knight: 0, villager: 0 },
+    7: { werewolf: 1, whiteWolf: 1, seer: 1, witch: 1, hunter: 1, guard: 1, idiot: 1, knight: 0, villager: 0 },
+    8: { werewolf: 1, whiteWolf: 1, seer: 1, witch: 1, hunter: 1, guard: 1, idiot: 1, knight: 1, villager: 0 },
+    9: { werewolf: 2, whiteWolf: 1, seer: 1, witch: 1, hunter: 1, guard: 1, idiot: 1, knight: 0, villager: 1 },
+    10: { werewolf: 2, whiteWolf: 1, seer: 1, witch: 1, hunter: 1, guard: 1, idiot: 1, knight: 1, villager: 1 }
   };
   return configs[playerCount] || configs[5];
 }
@@ -78,10 +91,13 @@ function generateRoles(playerCount) {
   const roles = [];
   
   for (let i = 0; i < config.werewolf; i++) roles.push(ROLES.WEREWOLF);
+  for (let i = 0; i < config.whiteWolf; i++) roles.push(ROLES.WHITE_WOLF);
   for (let i = 0; i < config.seer; i++) roles.push(ROLES.SEER);
   for (let i = 0; i < config.witch; i++) roles.push(ROLES.WITCH);
   for (let i = 0; i < config.hunter; i++) roles.push(ROLES.HUNTER);
   for (let i = 0; i < config.guard; i++) roles.push(ROLES.GUARD);
+  for (let i = 0; i < config.idiot; i++) roles.push(ROLES.IDIOT);
+  for (let i = 0; i < config.knight; i++) roles.push(ROLES.KNIGHT);
   for (let i = 0; i < config.villager; i++) roles.push(ROLES.VILLAGER);
   
   for (let i = roles.length - 1; i > 0; i--) {
@@ -113,6 +129,10 @@ class Game {
     this.hunterCanShoot = false;
     this.pendingHunterShoot = null;
     this.lastGuardedPlayer = null;
+    this.idiotRevealed = new Map();
+    this.knightDuelUsed = false;
+    this.whiteWolfExploded = false;
+    this.actionInProgress = false;
   }
 
   disconnectPlayer(playerId) {
@@ -260,15 +280,15 @@ class Game {
   }
 
   getAliveWerewolves() {
-    return this.getAlivePlayers().filter(p => p.role === ROLES.WEREWOLF);
+    return this.getAlivePlayers().filter(p => p.role === ROLES.WEREWOLF || p.role === ROLES.WHITE_WOLF);
   }
 
   getAliveVillagers() {
-    return this.getAlivePlayers().filter(p => p.role !== ROLES.WEREWOLF);
+    return this.getAlivePlayers().filter(p => p.role !== ROLES.WEREWOLF && p.role !== ROLES.WHITE_WOLF);
   }
 
   getAliveGoodPlayers() {
-    return this.getAlivePlayers().filter(p => p.role !== ROLES.WEREWOLF);
+    return this.getAlivePlayers().filter(p => p.role !== ROLES.WEREWOLF && p.role !== ROLES.WHITE_WOLF);
   }
 
   checkWinCondition() {
@@ -317,7 +337,7 @@ class Game {
     const target = this.players.get(targetId);
     
     if (!player || !target) return { success: false, message: '玩家不存在' };
-    if (player.role !== ROLES.WEREWOLF) return { success: false, message: '你不是狼人' };
+    if (player.role !== ROLES.WEREWOLF && player.role !== ROLES.WHITE_WOLF) return { success: false, message: '你不是狼人' };
     if (!player.alive) return { success: false, message: '你已死亡' };
     if (!target.alive) return { success: false, message: '目标已死亡' };
     
@@ -335,7 +355,7 @@ class Game {
     if (!target.alive) return { success: false, message: '目标已死亡' };
     
     this.nightActions.seerCheck = targetId;
-    const isWerewolf = target.role === ROLES.WEREWOLF;
+    const isWerewolf = target.role === ROLES.WEREWOLF || target.role === ROLES.WHITE_WOLF;
     this.seerResults.push({ seerId: playerId, targetId, isWerewolf });
     
     return { success: true, isWerewolf };
@@ -516,7 +536,9 @@ class Game {
     
     if (!player || !target) return { success: false, message: '玩家不存在' };
     if (!player.alive) return { success: false, message: '你已死亡，无法投票' };
+    if (this.idiotRevealed.get(playerId)) return { success: false, message: '你已翻牌，无法投票' };
     if (!target.alive) return { success: false, message: '目标已死亡' };
+    if (this.idiotRevealed.get(targetId)) return { success: false, message: '目标已翻牌，不能被投票' };
     
     this.votes[playerId] = targetId;
     return { success: true };
@@ -526,6 +548,7 @@ class Game {
     const player = this.players.get(playerId);
     if (!player) return { success: false, message: '玩家不存在' };
     if (!player.alive) return { success: false, message: '你已死亡，无法投票' };
+    if (this.idiotRevealed.get(playerId)) return { success: false, message: '你已翻牌，无法投票' };
     
     this.votes[playerId] = 'skip';
     return { success: true };
@@ -561,6 +584,17 @@ class Game {
     
     const eliminatedPlayer = this.players.get(eliminated);
     if (eliminatedPlayer) {
+      if (eliminatedPlayer.role === ROLES.IDIOT && !this.idiotRevealed.get(eliminated)) {
+        this.idiotRevealed.set(eliminated, true);
+        return { 
+          eliminated: null, 
+          voteCount, 
+          tie: false, 
+          idiotRevealed: true,
+          idiotPlayer: { id: eliminatedPlayer.id, name: eliminatedPlayer.name }
+        };
+      }
+      
       eliminatedPlayer.alive = false;
       
       if (eliminatedPlayer.role === ROLES.HUNTER) {
@@ -600,6 +634,67 @@ class Game {
     this.hunterCanShoot = false;
     this.pendingHunterShoot = null;
     return { success: true };
+  }
+
+  whiteWolfExplode(playerId, targetId) {
+    const player = this.players.get(playerId);
+    const target = this.players.get(targetId);
+    
+    if (!player || !target) return { success: false, message: '玩家不存在' };
+    if (player.role !== ROLES.WHITE_WOLF) return { success: false, message: '你不是白狼王' };
+    if (!player.alive) return { success: false, message: '你已死亡' };
+    if (!target.alive) return { success: false, message: '目标已死亡' };
+    if (targetId === playerId) return { success: false, message: '不能带自己' };
+    if (this.phase !== GAME_PHASES.DISCUSSION) return { success: false, message: '只能在发言阶段自爆' };
+    if (this.actionInProgress) return { success: false, message: '有其他操作正在进行' };
+    
+    this.actionInProgress = true;
+    player.alive = false;
+    target.alive = false;
+    this.whiteWolfExploded = true;
+    
+    return { 
+      success: true, 
+      whiteWolf: { id: player.id, name: player.name },
+      target: { id: target.id, name: target.name, role: target.role }
+    };
+  }
+
+  knightDuel(playerId, targetId) {
+    const player = this.players.get(playerId);
+    const target = this.players.get(targetId);
+    
+    if (!player || !target) return { success: false, message: '玩家不存在' };
+    if (player.role !== ROLES.KNIGHT) return { success: false, message: '你不是骑士' };
+    if (!player.alive) return { success: false, message: '你已死亡' };
+    if (!target.alive) return { success: false, message: '目标已死亡' };
+    if (targetId === playerId) return { success: false, message: '不能决斗自己' };
+    if (this.knightDuelUsed) return { success: false, message: '决斗技能已使用' };
+    if (this.phase !== GAME_PHASES.DISCUSSION) return { success: false, message: '只能在发言阶段决斗' };
+    if (this.actionInProgress) return { success: false, message: '有其他操作正在进行' };
+    
+    this.actionInProgress = true;
+    this.knightDuelUsed = true;
+    
+    const isWerewolf = target.role === ROLES.WEREWOLF || target.role === ROLES.WHITE_WOLF;
+    
+    if (isWerewolf) {
+      target.alive = false;
+      return { 
+        success: true, 
+        duelSuccess: true,
+        knight: { id: player.id, name: player.name },
+        target: { id: target.id, name: target.name, role: target.role }
+      };
+    } else {
+      player.alive = false;
+      return { 
+        success: true, 
+        duelSuccess: false,
+        knight: { id: player.id, name: player.name },
+        target: { id: target.id, name: target.name, role: target.role }
+      };
+    }
   }
 
   nextPhase() {
@@ -674,14 +769,16 @@ class Game {
         alive: p.alive,
         isHost: p.isHost,
         role: null,
-        disconnected: p.disconnected || false
+        disconnected: p.disconnected || false,
+        idiotRevealed: this.idiotRevealed.get(p.id) || false
       })),
       winner: this.winner,
       lastNightDeaths: this.lastNightDeaths,
       discussionTime: this.discussionTime,
       voteTime: this.voteTime,
       werewolfDiscussTime: this.werewolfDiscussTime,
-      canStart: this.canStart()
+      canStart: this.canStart(),
+      knightDuelUsed: this.knightDuelUsed
     };
     
     if (player) {
@@ -691,10 +788,10 @@ class Game {
       state.isAlive = player.alive;
       state.isHost = player.isHost;
       
-      if (player.role === ROLES.WEREWOLF) {
+      if (player.role === ROLES.WEREWOLF || player.role === ROLES.WHITE_WOLF) {
         state.werewolfTeammates = this.getPlayers()
-          .filter(p => p.role === ROLES.WEREWOLF && p.id !== player.id)
-          .map(p => ({ id: p.id, name: p.name }));
+          .filter(p => (p.role === ROLES.WEREWOLF || p.role === ROLES.WHITE_WOLF) && p.id !== player.id)
+          .map(p => ({ id: p.id, name: p.name, role: p.role }));
       }
       
       if (player.role === ROLES.SEER && this.seerResults.length > 0) {
@@ -715,6 +812,18 @@ class Game {
         state.guardInfo = this.getGuardInfo();
       }
       
+      if (player.role === ROLES.IDIOT) {
+        state.idiotRevealed = this.idiotRevealed.get(player.id) || false;
+      }
+      
+      if (player.role === ROLES.KNIGHT) {
+        state.knightDuelUsed = this.knightDuelUsed;
+      }
+      
+      if (player.role === ROLES.WHITE_WOLF) {
+        state.canExplode = player.alive && this.phase === GAME_PHASES.DISCUSSION;
+      }
+      
       if (this.phase === GAME_PHASES.NIGHT_WITCH && player.role === ROLES.WITCH) {
         state.witchInfo = this.getWitchInfo(this.witchPotions.antidote);
       }
@@ -725,6 +834,14 @@ class Game {
       
       if (this.phase === GAME_PHASES.HUNTER_SHOOT && player.role === ROLES.HUNTER && this.hunterCanShoot) {
         state.canShoot = true;
+      }
+      
+      if (this.phase === GAME_PHASES.DISCUSSION && player.role === ROLES.KNIGHT && !this.knightDuelUsed && player.alive) {
+        state.canDuel = true;
+      }
+      
+      if (this.phase === GAME_PHASES.DISCUSSION && player.role === ROLES.WHITE_WOLF && player.alive) {
+        state.canExplode = true;
       }
     }
     
@@ -778,6 +895,10 @@ class Game {
     this.pendingHunterShoot = null;
     this.hunterShootContext = null;
     this.lastGuardedPlayer = null;
+    this.idiotRevealed = new Map();
+    this.knightDuelUsed = false;
+    this.whiteWolfExploded = false;
+    this.actionInProgress = false;
     
     for (const player of this.players.values()) {
       player.role = null;

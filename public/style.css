@@ -1285,11 +1285,14 @@ h1 {
 .game-over-panel {
   text-align: center;
   animation: fadeIn 0.5s ease;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0 5px;
 }
 
 .winner-announcement {
-  font-size: 1.8rem;
-  margin-bottom: 15px;
+  font-size: 1.5rem;
+  margin-bottom: 12px;
   font-weight: bold;
   text-shadow: 0 0 20px currentColor;
 }
@@ -1305,35 +1308,130 @@ h1 {
 }
 
 .role-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.camp-section {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.camp-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.camp-title.werewolf-camp {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(185, 28, 28, 0.3) 100%);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.camp-title.good-camp {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(22, 163, 74, 0.3) 100%);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.camp-players {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 10px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
 }
 
 .role-reveal-item {
-  padding: 12px;
+  padding: 8px 6px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-  border-radius: 12px;
+  border-radius: 10px;
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all var(--transition-fast);
 }
 
 .role-reveal-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .role-reveal-item .name {
   font-weight: 600;
-  margin-bottom: 6px;
-  font-size: 0.9rem;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .role-reveal-item .role {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--primary-color);
+}
+
+.role-reveal-item.dead {
+  opacity: 0.6;
+}
+
+.role-reveal-item.dead .name {
+  text-decoration: line-through;
+}
+
+.no-players {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 10px;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .game-over-panel {
+    max-height: 60vh;
+  }
+  
+  .winner-announcement {
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+  }
+  
+  .role-reveal {
+    flex-direction: row;
+    gap: 20px;
+  }
+  
+  .camp-section {
+    flex: 1;
+    padding: 15px;
+  }
+  
+  .camp-title {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    padding: 8px 16px;
+  }
+  
+  .camp-players {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
+  }
+  
+  .role-reveal-item {
+    padding: 10px 8px;
+  }
+  
+  .role-reveal-item .name {
+    font-size: 0.9rem;
+  }
+  
+  .role-reveal-item .role {
+    font-size: 0.8rem;
+  }
 }
 
 .witch-panel {
@@ -1461,6 +1559,34 @@ h1 {
 .werewolf-chat-input input:focus {
   outline: none;
   border-color: #e94560;
+}
+
+.idiot-reveal-announcement {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.1) 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 12px;
+  padding: 15px;
+  margin: 10px 0;
+  animation: fadeIn 0.5s ease;
+}
+
+.idiot-reveal-announcement .name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.special-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.modal-target-list {
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 ::-webkit-scrollbar {
@@ -1689,27 +1815,6 @@ h1 {
   
   .death-announcement .name {
     font-size: 1rem;
-  }
-  
-  .winner-announcement {
-    font-size: 1.4rem;
-  }
-  
-  .role-reveal {
-    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-    gap: 8px;
-  }
-  
-  .role-reveal-item {
-    padding: 8px;
-  }
-  
-  .role-reveal-item .name {
-    font-size: 0.8rem;
-  }
-  
-  .role-reveal-item .role {
-    font-size: 0.7rem;
   }
   
   .witch-potions {
