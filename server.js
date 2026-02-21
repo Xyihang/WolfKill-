@@ -1,5 +1,5 @@
 /**
- * 局域网狼人杀游戏 - 服务器端
+ * 局域网狼人杀游戏 - 服务器端1
  * Made by Xyihang and GLM-5 / 由 Xyihang 和 GLM-5 制作
  */
 const express = require('express');

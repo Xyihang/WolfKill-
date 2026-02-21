@@ -562,7 +562,7 @@ const io = new Server(server, {
   pingTimeout: 60000,      // 心跳超时（毫秒）
   pingInterval: 25000,      // 心跳间隔（毫秒）
   reconnectionDelay: 1000,   // 重连延迟
-  reconnectionDelayMax: 5000  // 最大重连延迟
+  reconnectionDelayMax: 5000  // 最大重连延迟1
 });
 ```
 

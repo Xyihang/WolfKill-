@@ -1,5 +1,5 @@
 /**
- * 局域网狼人杀游戏 - 游戏逻辑类
+ * 局域网狼人杀游戏 - 游戏逻辑类1
  * Made by Xyihang and GLM-5 / 由 Xyihang 和 GLM-5 制作
  */
 const ROLES = {
