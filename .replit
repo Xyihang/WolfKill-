@@ -1,2 +1,14 @@
 language = "nodejs"
 run = "npm start"
+
+[deployment]
+build = ["npm", "install"]
+deploymentTarget = "cloudrun"
+publicDir = "public"
+run = ["npm", "start"]
+
+[nix]
+channel = "stable-23_11"
+
+[env]
+NODE_ENV = "production"
