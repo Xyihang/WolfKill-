@@ -2,7 +2,7 @@
 
 一个基于 Node.js + Socket.IO + TypeScript 的局域网狼人杀游戏，支持多人在线对战。
 
-目前已经上云到 replit 平台 (https://wolf-kill--xiyihang360.replit.app)
+目前已经上云到 railway 平台 (https://wolfkill-production.up.railway.app/)
 
 **当前版本**：V2.0 - TypeScript 重构版
 
